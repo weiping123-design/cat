@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>虚拟宠物纪念馆 - 咪咪的小窝</title>
+    <!-- 引入依赖 -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        /* 基础样式 */
+        body {
+            background: #FDF6E3;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+        
+        .memorial-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 宠物档案区 */
+        #pet-profile {
+            text-align: center;
+            border-bottom: 2px dashed #FFB6C1;
+            padding-bottom: 20px;
+        }
+
+        /* 献花动画 */
+        .flower-btn {
+            background: #FF69B4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 20px;
+        }
+
+        .flower-particle {
+            position: absolute;
+            pointer-events: none;
+            animation: fall 2s linear;
+        }
+
+        @keyframes fall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+
+        /* 纪念灯效果 */
+        .candle {
+            width: 20px;
+            height: 40px;
+            background: #FFF;
+            position: relative;
+            display: inline-block;
+            margin: 5px;
+        }
+
+        .flame {
+            width: 10px;
+            height: 15px;
+            background: #FFA500;
+            border-radius: 50% 50% 50% 50%;
+            position: absolute;
+            top: -10px;
+            left: 5px;
+            animation: flicker 0.1s infinite;
+        }
+
+        @keyframes flicker {
+            0% { transform: skew(1deg, 0); }
+            50% { transform: skew(-1deg, 1deg); }
+            100% { transform: skew(0, -1deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="memorial-container">
+        <!-- 宠物档案 -->
+        <div id="pet-profile">
+            <h1>❤️ 永远怀念咪咪（2015-2023） ❤️</h1>
+            <img src="https://via.placeholder.com/200x200?text=Pet+Photo" alt="咪咪的照片" style="border-radius: 50%;">
+            <p>一只爱晒太阳的橘猫，最爱吃小鱼干和追激光笔</p>
+        </div>
+
+        <!-- 献花按钮 -->
+        <div style="text-align: center; margin: 20px 0;">
+            <button class="flower-btn" onclick="sendFlower()">🌸 献花（已献 <span id="flower-count">0</span> 朵）</button>
+        </div>
+
+        <!-- 纪念灯区域 -->
+        <div id="candle-area" style="text-align: center;"></div>
+
+        <!-- 留言板 -->
+        <div>
+            <h3>留言墙</h3>
+            <input type="text" id="message-input" placeholder="写下你的怀念...">
+            <button onclick="postMessage()">提交</button>
+            <div id="message-wall" style="margin-top: 10px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase 初始化（替换为你自己的配置）
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID",
+            databaseURL: "YOUR_DATABASE_URL"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // 实时更新献花数量
+        database.ref('flowers').on('value', (snapshot) => {
+            document.getElementById('flower-count').textContent = snapshot.val() || 0;
+        });
+
+        // 献花功能
+        function sendFlower() {
+            // 增加献花数
+            database.ref('flowers').transaction((count) => (count || 0) + 1);
+            
+            // 花瓣动画
+            for (let i = 0; i < 5; i++) {
+                const flower = document.createElement('div');
+                flower.className = 'flower-particle';
+                flower.style.left = Math.random() * 100 + 'vw';
+                flower.innerHTML = '🌸';
+                document.body.appendChild(flower);
+                setTimeout(() => flower.remove(), 2000);
+            }
+        }
+
+        // 纪念灯实时同步
+        database.ref('candles').on('child_added', (snapshot) => {
+            const candle = document.createElement('div');
+            candle.className = 'candle';
+            candle.innerHTML = '<div class="flame"></div>';
+            candle.title = `点亮者：${snapshot.val().user}`;
+            document.getElementById('candle-area').appendChild(candle);
+        });
+
+        // 点击点亮蜡烛
+        document.getElementById('candle-area').onclick = () => {
+            const user = prompt('请输入你的名字：');
+            if (user) {
+                database.ref('candles').push().set({ user });
+            }
+        };
+
+        // 留言功能
+        function postMessage() {
+            const message = document.getElementById('message-input').value;
+            if (message) {
+                database.ref('messages').push().set({
+                    text: message,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                document.getElementById('message-input').value = '';
+            }
+        }
+
+        // 加载历史留言
+        database.ref('messages').on('child_added', (snapshot) => {
+            const msg = snapshot.val();
+            const div = document.createElement('div');
+            div.textContent = `${new Date(msg.timestamp).toLocaleString()}: ${msg.text}`;
+            div.style.padding = '5px';
+            div.style.borderBottom = '1px solid #eee';
+            document.getElementById('message-wall').appendChild(div);
+        });
+    </script>
+</body>
+</html>
